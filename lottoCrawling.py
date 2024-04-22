@@ -2,6 +2,9 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import pandas as pd
+from sqlalchemy import create_engine
+import pymysql
+
 
 def get_lottoNumber(count):   # 로또 추첨 회차 를 입력 받음
     url = f"https://dhlottery.co.kr/gameResult.do?method=byWin&drwNo={count}"
@@ -20,9 +23,20 @@ def get_lottoNumber(count):   # 로또 추첨 회차 를 입력 받음
 
     return lottoDic
 
+def get_recent_lottocount():  # 최신 로또 회차 크롤링 함수
+    url = "https://dhlottery.co.kr/common.do?method=main"  # 동행복권 첫 페이지 사이트 주소
+    html = requests.get(url).text
+    soup = BeautifulSoup(html, "html.parser")
+    recent_count = soup.find("strong", {'id': 'lottoDrwNo'}).text.strip()
+    recent_count = int(recent_count)
+    return recent_count+1
+
+
+
 lottoDf_list = []
 
-for count in range(1, 1117):
+
+for count in range(1, get_recent_lottocount()):
     lottoResult = get_lottoNumber(count)
     lottoDf_list.append({
         'count': count,  # 로또 추첨 회차
@@ -45,6 +59,9 @@ lottoDF = pd.DataFrame(data=lottoDf_list, columns= ['count','lottoDate','lottoNu
 
 print(lottoDF)
 
+engine = create_engine("mysql+pymysql://root:12345@localhost:3306/lottodb?charset=utf8mb4")
+engine.connect()
+lottoDF.to_sql(name="lotto_tbl", con=engine, if_exists='append', index=False)
 
 
 
